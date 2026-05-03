@@ -252,46 +252,143 @@ app.post('/api/recommendations', authenticateToken, (req, res) => {
     try {
         const { analysis } = req.body;
 
-        const recommendations = {
-            recommendations: [
+        // Allow empty analysis - provide general recommendations
+        const analysisData = analysis || {
+            functions: [],
+            globalVariables: [],
+            summary: { totalFunctions: 0, totalInstructions: 0, totalComplexity: 0, avgComplexity: 0 }
+        };
+
+        // Intelligent recommendations based on actual code analysis
+        const recommendations = [];
+        
+        // Check for loops - recommend control flow flattening
+        const hasLoops = analysisData.functions && analysisData.functions.some(f => f.hasLoops);
+        if (hasLoops) {
+            recommendations.push({
+                technique: 'Control Flow Flattening',
+                confidence: 0.95,
+                effectiveness: 0.90,
+                reasoning: `Your code contains ${analysis.functions.filter(f => f.hasLoops).length} function(s) with loops. Control flow flattening will transform these into a switch-based dispatcher, making the control flow extremely difficult to analyze.`,
+                overhead: '15-25%',
+                complexity: 'high'
+            });
+        }
+        
+        // Check for conditionals - recommend bogus control flow
+        const hasConditionals = analysisData.functions && analysisData.functions.some(f => f.hasConditionals);
+        if (hasConditionals) {
+            recommendations.push({
+                technique: 'Bogus Control Flow',
+                confidence: 0.88,
+                effectiveness: 0.75,
+                reasoning: `Detected ${analysisData.functions.filter(f => f.hasConditionals).length} function(s) with conditional branches. Inserting bogus control flow paths will create confusion for static analysis tools and decompilers.`,
+                overhead: '10-20%',
+                complexity: 'medium'
+            });
+        }
+        
+        // Check for global variables/strings - recommend string encryption
+        const hasGlobals = analysisData.globalVariables && analysisData.globalVariables.length > 0;
+        if (hasGlobals) {
+            recommendations.push({
+                technique: 'String Encryption',
+                confidence: 0.92,
+                effectiveness: 0.85,
+                reasoning: `Found ${analysisData.globalVariables.length} global variable(s) including potential string literals. Encrypting these prevents easy extraction of sensitive information and API keys.`,
+                overhead: '5-15%',
+                complexity: 'low'
+            });
+        }
+        
+        // High complexity code - recommend opaque predicates
+        const avgComplexity = analysisData.summary?.avgComplexity || 0;
+        if (avgComplexity > 5) {
+            recommendations.push({
+                technique: 'Opaque Predicates',
+                confidence: 0.82,
+                effectiveness: 0.70,
+                reasoning: `Your code has an average complexity of ${avgComplexity}. Adding opaque predicates (conditions that are always true/false but hard to analyze) will further increase analysis difficulty.`,
+                overhead: '8-15%',
+                complexity: 'medium'
+            });
+        }
+        
+        // Many instructions - recommend instruction substitution
+        const totalInstructions = analysisData.summary?.totalInstructions || 0;
+        if (totalInstructions > 50) {
+            recommendations.push({
+                technique: 'Instruction Substitution',
+                confidence: 0.78,
+                effectiveness: 0.65,
+                reasoning: `With ${totalInstructions} total instructions, replacing simple operations with complex equivalents will make the code harder to understand without significantly impacting performance.`,
+                overhead: '5-12%',
+                complexity: 'low'
+            });
+        }
+        
+        // If no specific recommendations, provide general ones
+        if (recommendations.length === 0) {
+            recommendations.push(
                 {
                     technique: 'Control Flow Flattening',
-                    confidence: 0.92,
-                    effectiveness: 0.85,
-                    reasoning: 'Your code contains conditional branches. Control flow flattening will significantly increase reverse engineering difficulty.',
+                    confidence: 0.85,
+                    effectiveness: 0.80,
+                    reasoning: 'Control flow flattening transforms your code into a switch-based dispatcher, making it extremely difficult to analyze. Ideal for protecting critical algorithms.',
                     overhead: '15-25%',
                     complexity: 'high'
                 },
                 {
-                    technique: 'Bogus Control Flow',
-                    confidence: 0.88,
+                    technique: 'String Encryption',
+                    confidence: 0.80,
                     effectiveness: 0.75,
-                    reasoning: 'Inserting bogus control flow paths will create confusion for static analysis tools.',
+                    reasoning: 'Encrypts string literals and sensitive data in your code, preventing easy extraction of API keys, passwords, and configuration values.',
+                    overhead: '5-15%',
+                    complexity: 'low'
+                },
+                {
+                    technique: 'Bogus Control Flow',
+                    confidence: 0.75,
+                    effectiveness: 0.70,
+                    reasoning: 'Inserts fake control flow paths that confuse decompilers and static analysis tools while maintaining program correctness.',
                     overhead: '10-20%',
                     complexity: 'medium'
                 },
                 {
-                    technique: 'String Encryption',
-                    confidence: 0.85,
-                    effectiveness: 0.80,
-                    reasoning: 'Encrypting string literals prevents easy extraction of sensitive information.',
-                    overhead: '5-15%',
+                    technique: 'Instruction Substitution',
+                    confidence: 0.70,
+                    effectiveness: 0.65,
+                    reasoning: 'Replaces simple operations with complex equivalents (e.g., x+1 becomes x-(-1)), making the code harder to understand.',
+                    overhead: '5-12%',
                     complexity: 'low'
                 }
-            ],
+            );
+        }
+        
+        // Sort by confidence
+        recommendations.sort((a, b) => b.confidence - a.confidence);
+        
+        const response = {
+            recommendations: recommendations.slice(0, 4), // Top 4 recommendations
             analysis: {
-                codeComplexity: analysis?.complexity || 12,
-                securityRisk: 'medium',
-                suggestedPass: 'flatten'
+                codeComplexity: analysisData.summary?.totalComplexity || 0,
+                totalFunctions: analysisData.summary?.totalFunctions || 0,
+                totalInstructions: totalInstructions,
+                hasLoops: hasLoops,
+                hasConditionals: hasConditionals,
+                hasGlobals: hasGlobals,
+                securityRisk: avgComplexity > 10 ? 'high' : avgComplexity > 5 ? 'medium' : 'low',
+                suggestedPass: recommendations[0]?.technique.toLowerCase().replace(/\s+/g, '-') || 'flatten'
             },
             metadata: {
-                model: 'standalone',
+                model: 'intelligent-analyzer',
                 timestamp: new Date().toISOString(),
-                source: 'mock'
+                source: 'code-analysis',
+                bobApiKey: process.env.BOB_API_KEY ? 'configured' : 'not-configured'
             }
         };
 
-        res.json(recommendations);
+        res.json(response);
     } catch (error) {
         console.error('Recommendations error:', error);
         res.status(500).json({ error: 'Failed to generate recommendations' });
