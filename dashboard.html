@@ -614,12 +614,107 @@
             <div id="historyPage" class="hidden space-y-6">
                 <div class="flex justify-between items-center mb-6">
                     <div>
-                        <h2 class="text-3xl font-bold text-gray-900">Operation History</h2>
-                        <p class="text-gray-600 mt-1">Track your analysis and obfuscation operations</p>
+                        <h2 class="text-3xl font-bold text-gray-900">Operation History & Metrics</h2>
+                        <p class="text-gray-600 mt-1">Track your analysis and obfuscation operations with professional metrics</p>
+                    </div>
+                    <button id="clearHistoryBtn" class="btn-secondary text-sm">
+                        <i class="fas fa-trash mr-2"></i>Clear History
+                    </button>
+                </div>
+
+                <!-- Professional Metrics Dashboard -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                    <div class="card p-6">
+                        <div class="flex items-center justify-between mb-2">
+                            <i class="fas fa-chart-line text-3xl text-blue-600"></i>
+                            <span class="status-badge status-info">Total</span>
+                        </div>
+                        <div class="metric-value" id="totalOperations">0</div>
+                        <div class="text-sm text-gray-600 mt-1">Total Operations</div>
+                    </div>
+                    
+                    <div class="card p-6">
+                        <div class="flex items-center justify-between mb-2">
+                            <i class="fas fa-search text-3xl text-green-600"></i>
+                            <span class="status-badge status-success">Analysis</span>
+                        </div>
+                        <div class="metric-value" id="totalAnalyses">0</div>
+                        <div class="text-sm text-gray-600 mt-1">Code Analyses</div>
+                    </div>
+                    
+                    <div class="card p-6">
+                        <div class="flex items-center justify-between mb-2">
+                            <i class="fas fa-shield-alt text-3xl text-purple-600"></i>
+                            <span class="status-badge status-warning">Obfuscation</span>
+                        </div>
+                        <div class="metric-value" id="totalObfuscations">0</div>
+                        <div class="text-sm text-gray-600 mt-1">Obfuscations</div>
+                    </div>
+                    
+                    <div class="card p-6">
+                        <div class="flex items-center justify-between mb-2">
+                            <i class="fas fa-clock text-3xl text-orange-600"></i>
+                            <span class="status-badge status-info">Avg Time</span>
+                        </div>
+                        <div class="metric-value" id="avgExecutionTime">0ms</div>
+                        <div class="text-sm text-gray-600 mt-1">Average Time</div>
                     </div>
                 </div>
 
+                <!-- Security Metrics -->
+                <div class="card p-6 mb-6">
+                    <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                        <i class="fas fa-shield-alt text-blue-600"></i>
+                        Security & Authentication Status
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="p-4 bg-green-50 border-l-4 border-green-600 rounded">
+                            <div class="flex items-center gap-3 mb-2">
+                                <i class="fas fa-check-circle text-2xl text-green-600"></i>
+                                <div>
+                                    <h4 class="font-semibold text-gray-900">JWT Authentication</h4>
+                                    <p class="text-sm text-gray-600">Secure token-based auth</p>
+                                </div>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-2">
+                                <i class="fas fa-lock mr-1"></i>Token expires in: <span id="tokenExpiry">24h</span>
+                            </div>
+                        </div>
+                        
+                        <div class="p-4 bg-blue-50 border-l-4 border-blue-600 rounded">
+                            <div class="flex items-center gap-3 mb-2">
+                                <i class="fas fa-user-shield text-2xl text-blue-600"></i>
+                                <div>
+                                    <h4 class="font-semibold text-gray-900">Session Active</h4>
+                                    <p class="text-sm text-gray-600">Logged in as: <strong>demo</strong></p>
+                                </div>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-2">
+                                <i class="fas fa-clock mr-1"></i>Session started: <span id="sessionStart">Just now</span>
+                            </div>
+                        </div>
+                        
+                        <div class="p-4 bg-purple-50 border-l-4 border-purple-600 rounded">
+                            <div class="flex items-center gap-3 mb-2">
+                                <i class="fas fa-database text-2xl text-purple-600"></i>
+                                <div>
+                                    <h4 class="font-semibold text-gray-900">Data Protection</h4>
+                                    <p class="text-sm text-gray-600">bcrypt + Rate limiting</p>
+                                </div>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-2">
+                                <i class="fas fa-shield-alt mr-1"></i>100 req/15min limit
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Operation History -->
                 <div class="card p-6">
+                    <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                        <i class="fas fa-history text-blue-600"></i>
+                        Recent Operations
+                    </h3>
                     <div id="historyContent">
                         <div class="text-center py-12">
                             <i class="fas fa-history text-6xl text-gray-300 mb-4"></i>
@@ -952,14 +1047,142 @@
                 
                 document.querySelectorAll('[id$="Page"]').forEach(p => p.classList.add('hidden'));
                 document.getElementById(page + 'Page').classList.remove('hidden');
+                
+                // Update metrics when viewing history page
+                if (page === 'history') {
+                    updateHistoryDisplay();
+                    updateMetrics();
+                }
             });
+        });
+        
+        // Update History Display
+        function updateHistoryDisplay() {
+            const historyContent = document.getElementById('historyContent');
+            
+            if (operationHistory.length === 0) {
+                historyContent.innerHTML = `
+                    <div class="text-center py-12">
+                        <i class="fas fa-history text-6xl text-gray-300 mb-4"></i>
+                        <p class="text-gray-500">No operations yet. Start by analyzing some code!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            historyContent.innerHTML = operationHistory.slice().reverse().map((op, index) => {
+                const isAnalysis = op.type === 'analysis';
+                const icon = isAnalysis ? 'search' : 'shield-alt';
+                const color = isAnalysis ? 'blue' : 'purple';
+                const time = new Date(op.timestamp).toLocaleString();
+                
+                return `
+                    <div class="p-4 mb-3 bg-gray-50 border-l-4 border-${color}-600 rounded hover:shadow-md transition-all">
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-${color}-100 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-${icon} text-${color}-600"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-gray-900 capitalize">${op.type}</h4>
+                                    <p class="text-xs text-gray-500">${time}</p>
+                                </div>
+                            </div>
+                            <span class="status-badge status-${isAnalysis ? 'info' : 'success'}">
+                                #${operationHistory.length - index}
+                            </span>
+                        </div>
+                        <div class="grid grid-cols-3 gap-4 text-sm mt-3">
+                            ${isAnalysis ? `
+                                <div>
+                                    <span class="text-gray-600">Functions:</span>
+                                    <span class="font-semibold ml-1">${op.data.functions?.length || 0}</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-600">Instructions:</span>
+                                    <span class="font-semibold ml-1">${op.data.totalInstructions || 0}</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-600">Complexity:</span>
+                                    <span class="font-semibold ml-1">${op.data.complexity || 0}</span>
+                                </div>
+                            ` : `
+                                <div>
+                                    <span class="text-gray-600">Complexity:</span>
+                                    <span class="font-semibold ml-1 text-green-600">+${op.data.stats?.complexityIncrease || 0}%</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-600">Time:</span>
+                                    <span class="font-semibold ml-1">${op.data.stats?.executionTime || 0}ms</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-600">Passes:</span>
+                                    <span class="font-semibold ml-1">${op.data.stats?.passesApplied || 0}</span>
+                                </div>
+                            `}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Update Professional Metrics
+        function updateMetrics() {
+            const totalOps = operationHistory.length;
+            const analyses = operationHistory.filter(op => op.type === 'analysis').length;
+            const obfuscations = operationHistory.filter(op => op.type === 'obfuscation').length;
+            
+            // Calculate average execution time
+            const obfuscationOps = operationHistory.filter(op => op.type === 'obfuscation');
+            const avgTime = obfuscationOps.length > 0 
+                ? (obfuscationOps.reduce((sum, op) => sum + (op.data.stats?.executionTime || 0), 0) / obfuscationOps.length).toFixed(2)
+                : 0;
+            
+            document.getElementById('totalOperations').textContent = totalOps;
+            document.getElementById('totalAnalyses').textContent = analyses;
+            document.getElementById('totalObfuscations').textContent = obfuscations;
+            document.getElementById('avgExecutionTime').textContent = `${avgTime}ms`;
+            
+            // Update session info
+            const sessionStartTime = sessionStorage.getItem('session_start') || new Date().toISOString();
+            if (!sessionStorage.getItem('session_start')) {
+                sessionStorage.setItem('session_start', sessionStartTime);
+            }
+            
+            const startTime = new Date(sessionStartTime);
+            const now = new Date();
+            const diffMinutes = Math.floor((now - startTime) / 60000);
+            
+            if (diffMinutes < 1) {
+                document.getElementById('sessionStart').textContent = 'Just now';
+            } else if (diffMinutes < 60) {
+                document.getElementById('sessionStart').textContent = `${diffMinutes} min ago`;
+            } else {
+                const hours = Math.floor(diffMinutes / 60);
+                document.getElementById('sessionStart').textContent = `${hours}h ago`;
+            }
+        }
+        
+        // Clear History
+        document.getElementById('clearHistoryBtn').addEventListener('click', () => {
+            if (confirm('Are you sure you want to clear all operation history?')) {
+                operationHistory = [];
+                updateHistoryDisplay();
+                updateMetrics();
+                showNotification('History cleared successfully', 'success');
+            }
         });
         
         // Logout
         document.getElementById('logoutBtn').addEventListener('click', () => {
             sessionStorage.removeItem('obfusibob_token');
+            sessionStorage.removeItem('session_start');
             window.location.href = 'index.html';
         });
+        
+        // Initialize metrics on page load
+        updateMetrics();
+        setInterval(updateMetrics, 60000); // Update every minute
         
         // Helper Functions
         function setLoading(btnId, loading) {
